@@ -1,0 +1,8 @@
+[package]
+name = "conrod-graph"
+version = "0.1.0"
+authors = ["geemili <minergeemili@gmail.com>"]
+
+[dependencies]
+conrod = "0.44"
+num = "0.1.30"
