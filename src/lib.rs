@@ -3,21 +3,23 @@
 extern crate conrod;
 extern crate num;
 
-use conrod::widget;
+pub mod axis;
+
+use conrod::{widget, utils};
 use conrod::{Color, Colorable, Positionable, Scalar, Sizeable, Widget};
 
-pub struct LineGraph<X, Y, F> {
+pub struct LineGraph<F> {
     common: widget::CommonBuilder,
     style: Style,
     // Stuff that plot path has
-    min_x: X,
-    max_x: X,
-    min_y: Y,
-    max_y: Y,
+    min_x: f64,
+    max_x: f64,
+    min_y: f64,
+    max_y: f64,
     f: F,
     // Graph details
-    tick_increment_x: X,
-    tick_increment_y: Y,
+    tick_increment_x: f64,
+    tick_increment_y: f64,
 }
 
 widget_style! {
@@ -33,7 +35,9 @@ widget_ids! {
     struct Ids {
         plot_path,
         line_x,
+        axis_x,
         line_y,
+        axis_y,
     }
 }
 
@@ -41,9 +45,9 @@ pub struct State {
     ids: Ids,
 }
 
-impl<X, Y, F> LineGraph<X, Y, F> {
+impl<F> LineGraph<F> {
 
-    pub fn new(min_x: X, max_x: X, tick_increment_x: X, min_y: Y, max_y: Y, tick_increment_y: Y, f: F) -> Self {
+    pub fn new(min_x: f64, max_x: f64, tick_increment_x: f64, min_y: f64, max_y: f64, tick_increment_y: f64, f: F) -> Self {
         LineGraph {
             common: widget::CommonBuilder::new(),
             style: Style::new(),
@@ -59,10 +63,8 @@ impl<X, Y, F> LineGraph<X, Y, F> {
 
 }
 
-impl<X, Y, F> Widget for LineGraph<X, Y, F>
-    where X: num::NumCast + Clone,
-          Y: num::NumCast + Clone,
-          F: Fn(X) -> Y,
+impl<F> Widget for LineGraph<F>
+    where F: Fn(f64) -> f64,
 {
     type State = State;
     type Style = Style;
@@ -87,15 +89,23 @@ impl<X, Y, F> Widget for LineGraph<X, Y, F>
     }
 
     fn update(self, args: widget::UpdateArgs<Self>) -> Self::Event {
+        use conrod::Rect;
         let widget::UpdateArgs { id, state, style, rect, ui, ..} = args;
         let LineGraph { min_x, max_x, min_y, max_y, f, tick_increment_x, tick_increment_y, ..} = self;
 
-        let top_left = [rect.left()+10.0, rect.top()];
-        let bottom_left = [rect.left()+10.0, rect.bottom()+10.0];
-        let bottom_right = [rect.right(), rect.bottom()+10.0];
+        let padding_x = 20.0;
+        let padding_y = 20.0;
 
-        let xy_trans = [rect.x()+20.0, rect.y()+20.0];
-        let dim_trans = [rect.w()-20.0, rect.h()-20.0];
+        let graph_left = rect.left()+padding_x;
+        let graph_bottom = rect.bottom()+padding_y;
+        let graph_right = rect.right();
+
+        let top_left = [graph_left, rect.top()];
+        let bottom_left = [graph_left, graph_bottom];
+        let bottom_right = [rect.right(), graph_bottom];
+
+        let xy_trans = [rect.x()+padding_x, rect.y()+padding_y];
+        let dim_trans = [rect.w()-padding_x, rect.h()-padding_y];
 
         let thickness = style.thickness(ui.theme());
         let color = style.color(ui.theme());
@@ -106,18 +116,34 @@ impl<X, Y, F> Widget for LineGraph<X, Y, F>
             .color(color)
             .parent(id)
             .set(state.ids.plot_path, ui);
+        // X
         widget::Line::abs(bottom_left, bottom_right)
             .color(color)
             .thickness(thickness)
             .parent(id)
             .graphics_for(id)
             .set(state.ids.line_x, ui);
+        let axis_area_x = Rect::from_corners([rect.left()+5.0, graph_bottom], [graph_left, rect.top()]);
+        axis::Axis::new(axis::Orientation::Vertical, min_x, max_x, tick_increment_x)
+            // .color(color)
+            // .thickness(thickness)
+            .xy(axis_area_x.xy())
+            .wh(axis_area_x.dim())
+            .set(state.ids.axis_x, ui);
+        // Y
         widget::Line::abs(bottom_left, top_left)
             .color(color)
             .thickness(thickness)
             .parent(id)
             .graphics_for(id)
             .set(state.ids.line_y, ui);
+        let axis_area_y = Rect::from_corners([graph_left, rect.bottom()+5.0], [rect.right(), graph_bottom]);
+        axis::Axis::new(axis::Orientation::Horizontal, min_y, max_y, tick_increment_y)
+            // .color(color)
+            // .thickness(thickness)
+            .xy(axis_area_y.xy())
+            .wh(axis_area_y.dim())
+            .set(state.ids.axis_y, ui);
     }
 }
 
