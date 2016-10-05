@@ -17,9 +17,6 @@ pub struct LineGraph<F> {
     min_y: f64,
     max_y: f64,
     f: F,
-    // Graph details
-    tick_increment_x: f64,
-    tick_increment_y: f64,
 }
 
 widget_style! {
@@ -47,7 +44,7 @@ pub struct State {
 
 impl<F> LineGraph<F> {
 
-    pub fn new(min_x: f64, max_x: f64, tick_increment_x: f64, min_y: f64, max_y: f64, tick_increment_y: f64, f: F) -> Self {
+    pub fn new(min_x: f64, max_x: f64, min_y: f64, max_y: f64, f: F) -> Self {
         LineGraph {
             common: widget::CommonBuilder::new(),
             style: Style::new(),
@@ -56,8 +53,6 @@ impl<F> LineGraph<F> {
             min_y: min_y,
             max_y: max_y,
             f: f,
-            tick_increment_x: tick_increment_x,
-            tick_increment_y: tick_increment_y,
         }
     }
 
@@ -91,7 +86,7 @@ impl<F> Widget for LineGraph<F>
     fn update(self, args: widget::UpdateArgs<Self>) -> Self::Event {
         use conrod::Rect;
         let widget::UpdateArgs { id, state, style, rect, ui, ..} = args;
-        let LineGraph { min_x, max_x, min_y, max_y, f, tick_increment_x, tick_increment_y, ..} = self;
+        let LineGraph { min_x, max_x, min_y, max_y, f, ..} = self;
 
         let padding_x = 20.0;
         let padding_y = 20.0;
@@ -115,6 +110,7 @@ impl<F> Widget for LineGraph<F>
             .xy(xy_trans)
             .color(color)
             .parent(id)
+            .crop_kids()
             .set(state.ids.plot_path, ui);
         // X
         widget::Line::abs(bottom_left, bottom_right)
@@ -123,10 +119,9 @@ impl<F> Widget for LineGraph<F>
             .parent(id)
             .graphics_for(id)
             .set(state.ids.line_x, ui);
-        let axis_area_x = Rect::from_corners([rect.left()+5.0, graph_bottom], [graph_left, rect.top()]);
-        axis::Axis::new(axis::Orientation::Vertical, min_x, max_x, tick_increment_x)
-            // .color(color)
-            // .thickness(thickness)
+        let axis_area_x = Rect::from_corners([graph_left, rect.bottom()+5.0], [rect.right(), graph_bottom]);
+        axis::Axis::new(min_x, max_x)
+            .orientation(axis::Orientation::Horizontal)
             .xy(axis_area_x.xy())
             .wh(axis_area_x.dim())
             .set(state.ids.axis_x, ui);
@@ -137,10 +132,9 @@ impl<F> Widget for LineGraph<F>
             .parent(id)
             .graphics_for(id)
             .set(state.ids.line_y, ui);
-        let axis_area_y = Rect::from_corners([graph_left, rect.bottom()+5.0], [rect.right(), graph_bottom]);
-        axis::Axis::new(axis::Orientation::Horizontal, min_y, max_y, tick_increment_y)
-            // .color(color)
-            // .thickness(thickness)
+        let axis_area_y = Rect::from_corners([rect.left()+5.0, graph_bottom], [graph_left, rect.top()]);
+        axis::Axis::new(min_y, max_y)
+            .orientation(axis::Orientation::Vertical)
             .xy(axis_area_y.xy())
             .wh(axis_area_y.dim())
             .set(state.ids.axis_y, ui);

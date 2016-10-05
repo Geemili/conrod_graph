@@ -7,14 +7,18 @@ pub enum Orientation {
 	Vertical,
 }
 
+
+// TODO: Make the Axis type generic over scale type (log, linear, etc.)
+
 pub struct Axis<X> {
     common: widget::CommonBuilder,
     style: Style,
-    // Stuff that plot path has
-    min: X,
-    max: X,
-    tick_increment: X,
-    orientation: Orientation,
+	orientation: Orientation,
+	tick_count: usize,
+
+	min: X,
+	max: X,
+	origin: X,
 }
 
 widget_style! {
@@ -36,23 +40,95 @@ pub struct State {
     ids: Ids,
 }
 
-impl<X> Axis<X> {
+use num::Zero;
 
-    pub fn new(orientation: Orientation, min: X, max: X, tick_increment: X) -> Self {
+impl<X> Axis<X>
+	where X: Clone + Zero + Into<f64>
+	{
+
+    pub fn new(min: X, max: X) -> Self {
         Axis {
             common: widget::CommonBuilder::new(),
             style: Style::new(),
+			orientation: Orientation::Horizontal,
+			tick_count: 8,
             min: min,
             max: max,
-            tick_increment: tick_increment,
-			orientation: orientation,
+			origin: X::zero(),
         }
     }
 
+	pub fn orientation(mut self, orientation: Orientation) -> Self {
+		self.orientation = orientation;
+		self
+	}
+
+	pub fn origin(mut self, origin: X) -> Self {
+		self.origin = origin;
+		self
+	}
+
+	pub fn tick_count(mut self, tick_count: usize) -> Self {
+		self.tick_count = tick_count;
+		self
+	}
+
+	fn generate_ticks(&self) -> Vec<f64> {
+		let origin: f64 = self.origin.clone().into();
+		let min: f64 = self.min.clone().into();
+		let max: f64 = self.max.clone().into();
+
+		// Get tick step
+		let exact_step = (max - min)/(self.tick_count as f64 + 1e-10); //
+		let magnitude = 10.0f64.powf(exact_step.log(10.0).floor());
+		let mantissa = exact_step / magnitude;
+		let tick_step = pick_closest(&[1.0, 2.0, 2.5, 5.0, 10.0], mantissa)*magnitude;
+
+		// Generate positions for tick marks
+		let mut marks = vec![];
+		let first_step = ((min - origin) / tick_step).floor();
+		let last_step = ((max - origin) / tick_step).floor();
+		let mut tick_count = (last_step - first_step) + 1.0;
+		if tick_count < 0.0 {
+			tick_count = 0.0;
+		}
+		let mut i = 0.0;
+		while i < tick_count {
+			let mark = origin + (first_step+i) * tick_step;
+			if mark >= min && mark <= max  {
+				marks.push(mark);
+			}
+			i += 1.0;
+		}
+
+		marks
+	}
+
+}
+
+fn pick_closest(elements: &[f64], target: f64) -> f64 {
+	match get_lower_bound_index(elements, target) {
+		None => elements[elements.len()-1],
+		Some(0) => elements[0],
+		Some(index) if target-elements[index-1] < target-elements[index] => elements[index-1],
+		Some(index) => elements[index],
+	}
+}
+
+/// Gets the first element of the slice that is not lower than or equal to the target
+fn get_lower_bound_index(elements: &[f64], target: f64) -> Option<usize> {
+	let mut index = 0;
+	while index < elements.len() {
+		if elements[index] > target {
+			return Some(index);
+		}
+		index += 1;
+	}
+	None
 }
 
 impl<X> Widget for Axis<X>
-    where X: Into<f64>,
+    where X: Clone + Zero + Into<f64>,
 {
     type State = State;
     type Style = Style;
@@ -78,7 +154,7 @@ impl<X> Widget for Axis<X>
 
     fn update(self, args: widget::UpdateArgs<Self>) -> Self::Event {
         let widget::UpdateArgs { id, state, style, rect, ui, ..} = args;
-        let Axis { min, max, tick_increment, orientation, ..} = self;
+        let Axis { ref min, ref max, ref orientation, ..} = self;
 
 		// The code that actually figures out where to put lines. E.G., the logic specific to this
 		// widget
@@ -90,36 +166,36 @@ impl<X> Widget for Axis<X>
 			[rect.bottom(), rect.top()],
 		];
 		// coord_ord[0] == one we are drawing on
-		let coord_ord = match orientation {
+		let coord_ord = match *orientation {
 			Orientation::Horizontal => [0, 1],
 			Orientation::Vertical => [1, 0],
 		};
 
-		let min: f64 = min.into();
-		let max: f64 = max.into();
-		let tick_increment: f64 = tick_increment.into();
+		let min: f64 = min.clone().into();
+		let max: f64 = max.clone().into();
 
         let thickness = style.thickness(ui.theme());
         let color = style.color(ui.theme());
 
         // Generate tick mark ids
-        let visible_tick_marks = ((max - min)/tick_increment).ceil() as usize;
-        if state.ids.ticks.len() < visible_tick_marks {
+        let visible_tick_marks = self.generate_ticks();
+
+        // Generate tick mark ids
+        let num_tick_marks = visible_tick_marks.len();
+        if state.ids.ticks.len() < num_tick_marks {
             let id_gen = &mut ui.widget_id_generator();
-            state.update(|state| state.ids.ticks.resize(visible_tick_marks, id_gen));
+            state.update(|state| state.ids.ticks.resize(num_tick_marks, id_gen));
         }
 
 		// Convience lambda
         let point_to_plot =
             |x| utils::map_range(x, min, max, draw_rect[coord_ord[0]][0], draw_rect[coord_ord[0]][1]);
 
-		// Get the first visible tick mark
-        let mut current_tick = (min/tick_increment).ceil() * tick_increment;
+		// Iterate through the tick mark positions and place them on UI
         let mut id_iter = state.ids.ticks.iter();
-
-		while current_tick < max {
-            let &id_tick = id_iter.next().unwrap();
-            let line_plot_coord = point_to_plot(current_tick);
+		for mark_position in visible_tick_marks {
+            let &id_tick = id_iter.next().expect("Axis ran out of widget ids");
+            let line_plot_coord = point_to_plot(mark_position.into());
 
 			let mut start_coord = [0.0; 2];
 			start_coord[coord_ord[0]] = line_plot_coord;
@@ -135,9 +211,6 @@ impl<X> Widget for Axis<X>
                 .parent(id)
                 .graphics_for(id)
                 .set(id_tick, ui);
-
-			// Go to the next visible tick mark
-            current_tick += tick_increment;
         }
     }
 }
