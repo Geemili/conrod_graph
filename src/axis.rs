@@ -1,5 +1,5 @@
 
-use conrod::{widget, utils, self};
+use conrod::{Ui, Dimension, FontSize, widget, text, utils, self};
 use conrod::{Color, Colorable, Positionable, Scalar, Sizeable, Widget};
 
 pub enum Orientation {
@@ -27,11 +27,18 @@ widget_style! {
         - thickness: Scalar { 1.0 }
         /// The color of the line
         - color: Color { theme.shape_color }
+        /// The color of the line
+        - tick_mark_size: Scalar { 10.0 }
+        /// The font of the numbers
+        - font_id: Option<text::font::Id> { theme.font_id }
+        /// The size of the font
+        - font_size: FontSize { theme.font_size_small }
     }
 }
 
 widget_ids! {
     struct Ids {
+        line,
         ticks[],
         labels[],
     }
@@ -153,6 +160,47 @@ impl<X> Widget for Axis<X>
         self.style.clone()
     }
 
+	fn default_x_dimension(&self, ui: &Ui) -> Dimension {
+		let tick_mark_width = match self.orientation {
+			Orientation::Horizontal => self.style.tick_mark_size(&ui.theme),
+			Orientation::Vertical => 0.0,
+		};
+		let font = match self.style.font_id(&ui.theme)
+			.or(ui.fonts.ids().next())
+			.and_then(|id| ui.fonts.get(id))
+			{
+				Some(font) => font,
+				None => return Dimension::Absolute(tick_mark_width),
+			};
+
+		let font_size = self.style.font_size(&ui.theme);
+		let mut max_width = 0.0;
+        let visible_tick_marks = self.generate_ticks();
+		for tick_mark in self.generate_ticks() {
+			let width = text::line::width(&format!("{}", tick_mark), font, font_size);
+			max_width = utils::partial_max(max_width, width);
+		}
+		Dimension::Absolute(max_width + tick_mark_width)
+	}
+
+	fn default_y_dimension(&self, ui: &Ui) -> Dimension {
+		let tick_mark_height = match self.orientation {
+			Orientation::Horizontal => 0.0,
+			Orientation::Vertical => self.style.tick_mark_size(&ui.theme),
+		};
+		let font = match self.style.font_id(&ui.theme)
+			.or(ui.fonts.ids().next())
+			.and_then(|id| ui.fonts.get(id))
+			{
+				Some(font) => font,
+				None => return Dimension::Absolute(tick_mark_height),
+			};
+
+		let font_size = self.style.font_size(&ui.theme);
+		let height = text::height(1, font_size, 0.0);
+		Dimension::Absolute(height + tick_mark_height)
+	}
+
     fn update(self, args: widget::UpdateArgs<Self>) -> Self::Event {
         let widget::UpdateArgs { id, state, style, rect, ui, ..} = args;
         let Axis { ref min, ref max, ref orientation, ..} = self;
@@ -196,6 +244,9 @@ impl<X> Widget for Axis<X>
         let point_to_plot =
             |x| utils::map_range(x, min, max, draw_rect[coord_ord[0]][0], draw_rect[coord_ord[0]][1]);
 
+		// Get the size of the tick marks
+		let tick_mark_size = style.tick_mark_size(&ui.theme);
+
 		// Iterate through the tick mark positions and place them on UI
         let mut id_iter = state.ids.ticks.iter();
         let mut label_id_iter = state.ids.labels.iter();
@@ -207,20 +258,19 @@ impl<X> Widget for Axis<X>
 			// Calculate where the mark is placed in UI coordinates
 			let line_plot_coord = point_to_plot(mark_position.into());
 
-			//
+			let mut label_coords = [0.0; 2];
+			label_coords[coord_ord[0]] = line_plot_coord;
+			label_coords[coord_ord[1]] = draw_rect[coord_ord[1]][0];
+
+			let mut start_coord = [0.0; 2];
+			start_coord[coord_ord[0]] = line_plot_coord;
+			start_coord[coord_ord[1]] = draw_rect[coord_ord[1]][1];
+
 			let mut end_coord = [0.0; 2];
 			end_coord[coord_ord[0]] = line_plot_coord;
-			end_coord[coord_ord[1]] = draw_rect[coord_ord[1]][1];
+			end_coord[coord_ord[1]] = draw_rect[coord_ord[1]][1] + tick_mark_size;
 
-			let mut start_coord_tick_label = [0.0; 2];
-			start_coord_tick_label[coord_ord[0]] = line_plot_coord;
-			start_coord_tick_label[coord_ord[1]] = draw_rect[coord_ord[1]][0];
-
-			let mut start_coord_tick_mark = [0.0; 2];
-			start_coord_tick_mark[coord_ord[0]] = line_plot_coord;
-			start_coord_tick_mark[coord_ord[1]] = draw_rect[coord_ord[1]][0] + ((end_coord[coord_ord[1]] - draw_rect[coord_ord[1]][0])/2.0);
-
-            widget::Line::abs(start_coord_tick_mark, end_coord)
+            widget::Line::abs(start_coord, end_coord)
                 .color(color)
                 .thickness(thickness)
                 .parent(id)
@@ -230,10 +280,24 @@ impl<X> Widget for Axis<X>
             widget::Text::new(&format!("{}", mark_position))
                 .color(color)
                 .align_text_to(conrod::Align::Middle)
-				.xy(start_coord_tick_label)
+				.xy(label_coords)
                 .parent(id)
                 .graphics_for(id)
                 .set(id_label, ui);
         }
+
+		let mut divider_points = [[0.0, 0.0], [0.0, 0.0]];
+		divider_points[0][coord_ord[0]] = draw_rect[coord_ord[0]][0]; // Start point
+		divider_points[0][coord_ord[1]] = draw_rect[coord_ord[1]][1]; // Start point
+		divider_points[1][coord_ord[0]] = draw_rect[coord_ord[0]][1]; // End point
+		divider_points[1][coord_ord[1]] = draw_rect[coord_ord[1]][1]; // End point
+
+		// Place line between numbers and tick marks
+		widget::Line::abs(divider_points[0], divider_points[1])
+			.color(color)
+			.thickness(thickness)
+			.parent(id)
+			.graphics_for(id)
+			.set(state.ids.line, ui);
     }
 }

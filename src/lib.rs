@@ -31,9 +31,7 @@ widget_style! {
 widget_ids! {
     struct Ids {
         plot_path,
-        line_x,
         axis_x,
-        line_y,
         axis_y,
     }
 }
@@ -88,56 +86,58 @@ impl<F> Widget for LineGraph<F>
         let widget::UpdateArgs { id, state, style, rect, ui, ..} = args;
         let LineGraph { min_x, max_x, min_y, max_y, f, ..} = self;
 
-        let padding_x = 20.0;
-        let padding_y = 20.0;
-
-        let graph_left = rect.left()+padding_x;
-        let graph_bottom = rect.bottom()+padding_y;
-        let graph_right = rect.right();
-
-        let top_left = [graph_left, rect.top()];
-        let bottom_left = [graph_left, graph_bottom];
-        let bottom_right = [rect.right(), graph_bottom];
-
-        let xy_trans = [rect.x()+padding_x, rect.y()+padding_y];
-        let dim_trans = [rect.w()-padding_x, rect.h()-padding_y];
-
         let thickness = style.thickness(ui.theme());
         let color = style.color(ui.theme());
 
+        // Create x axis
+        let x_axis = axis::Axis::new(min_x, max_x)
+            .orientation(axis::Orientation::Horizontal);
+
+        // Calculate it's height
+        let x_axis_height = match x_axis.default_y_dimension(ui) {
+            conrod::Dimension::Absolute(number) => number,
+            _ => 0.0,
+        };
+
+        // Create y axis
+        let y_axis = axis::Axis::new(min_y, max_y)
+            .orientation(axis::Orientation::Vertical);
+
+        // Calculate it's width
+        let y_axis_width = match y_axis.default_x_dimension(ui) {
+            conrod::Dimension::Absolute(number) => number,
+            _ => 0.0,
+        };
+
+        // Create rectangles for the axis'
+        let x_axis_rect = Rect::from_corners(
+            [rect.left() + y_axis_width, rect.bottom()],
+            [rect.right(),               rect.bottom() + x_axis_height]);
+        let y_axis_rect = Rect::from_corners(
+            [rect.left(),                rect.bottom() + x_axis_height],
+            [rect.left() + y_axis_width, rect.top()]);
+
+        // Place the axis'
+        x_axis
+            .xy(x_axis_rect.xy())
+            .wh(x_axis_rect.dim())
+            .set(state.ids.axis_x, ui);
+        y_axis
+            .xy(y_axis_rect.xy())
+            .wh(y_axis_rect.dim())
+            .set(state.ids.axis_y, ui);
+
+        // Place PlotPath
+        let plot_path_rect = Rect::from_corners(
+            [rect.left() + y_axis_width, rect.bottom() + x_axis_height],
+            [rect.right(),               rect.top()]);
         widget::PlotPath::new(min_x, max_x, min_y, max_y, f)
-            .wh(dim_trans)
-            .xy(xy_trans)
+            .wh(plot_path_rect.dim())
+            .xy(plot_path_rect.xy())
             .color(color)
             .parent(id)
             .crop_kids()
             .set(state.ids.plot_path, ui);
-        // X
-        widget::Line::abs(bottom_left, bottom_right)
-            .color(color)
-            .thickness(thickness)
-            .parent(id)
-            .graphics_for(id)
-            .set(state.ids.line_x, ui);
-        let axis_area_x = Rect::from_corners([graph_left, rect.bottom()+5.0], [rect.right(), graph_bottom]);
-        axis::Axis::new(min_x, max_x)
-            .orientation(axis::Orientation::Horizontal)
-            .xy(axis_area_x.xy())
-            .wh(axis_area_x.dim())
-            .set(state.ids.axis_x, ui);
-        // Y
-        widget::Line::abs(bottom_left, top_left)
-            .color(color)
-            .thickness(thickness)
-            .parent(id)
-            .graphics_for(id)
-            .set(state.ids.line_y, ui);
-        let axis_area_y = Rect::from_corners([rect.left()+5.0, graph_bottom], [graph_left, rect.top()]);
-        axis::Axis::new(min_y, max_y)
-            .orientation(axis::Orientation::Vertical)
-            .xy(axis_area_y.xy())
-            .wh(axis_area_y.dim())
-            .set(state.ids.axis_y, ui);
     }
 }
 

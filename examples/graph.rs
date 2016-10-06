@@ -78,6 +78,6 @@ fn set_ui(ref mut ui: conrod::UiCell, ids: &Ids) {
     LineGraph::new(-1.0, 1.0, -1.0, 1.0, |x| f64::sin((x + 1.0)*std::f64::consts::PI))
 		.parent(ids.canvas)
         .middle()
-        .wh_of(ids.canvas)
+        .padded_wh_of(ids.canvas, 0.0)
 		.set(ids.graph, ui);
 }
