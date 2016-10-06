@@ -33,6 +33,7 @@ widget_style! {
 widget_ids! {
     struct Ids {
         ticks[],
+        labels[],
     }
 }
 
@@ -186,6 +187,10 @@ impl<X> Widget for Axis<X>
             let id_gen = &mut ui.widget_id_generator();
             state.update(|state| state.ids.ticks.resize(num_tick_marks, id_gen));
         }
+        if state.ids.labels.len() < num_tick_marks {
+            let id_gen = &mut ui.widget_id_generator();
+            state.update(|state| state.ids.labels.resize(num_tick_marks, id_gen));
+        }
 
 		// Convience lambda
         let point_to_plot =
@@ -193,24 +198,42 @@ impl<X> Widget for Axis<X>
 
 		// Iterate through the tick mark positions and place them on UI
         let mut id_iter = state.ids.ticks.iter();
+        let mut label_id_iter = state.ids.labels.iter();
 		for mark_position in visible_tick_marks {
-            let &id_tick = id_iter.next().expect("Axis ran out of widget ids");
-            let line_plot_coord = point_to_plot(mark_position.into());
+			// Get the next id
+            let &id_tick = id_iter.next().expect("Axis ran out of widget ids for tick marks");
+            let &id_label = label_id_iter.next().expect("Axis ran out of widget ids for labels");
 
-			let mut start_coord = [0.0; 2];
-			start_coord[coord_ord[0]] = line_plot_coord;
-			start_coord[coord_ord[1]] = draw_rect[coord_ord[1]][0];
+			// Calculate where the mark is placed in UI coordinates
+			let line_plot_coord = point_to_plot(mark_position.into());
 
+			//
 			let mut end_coord = [0.0; 2];
 			end_coord[coord_ord[0]] = line_plot_coord;
 			end_coord[coord_ord[1]] = draw_rect[coord_ord[1]][1];
 
-            widget::Line::abs(start_coord, end_coord)
+			let mut start_coord_tick_label = [0.0; 2];
+			start_coord_tick_label[coord_ord[0]] = line_plot_coord;
+			start_coord_tick_label[coord_ord[1]] = draw_rect[coord_ord[1]][0];
+
+			let mut start_coord_tick_mark = [0.0; 2];
+			start_coord_tick_mark[coord_ord[0]] = line_plot_coord;
+			start_coord_tick_mark[coord_ord[1]] = draw_rect[coord_ord[1]][0] + ((end_coord[coord_ord[1]] - draw_rect[coord_ord[1]][0])/2.0);
+
+            widget::Line::abs(start_coord_tick_mark, end_coord)
                 .color(color)
                 .thickness(thickness)
                 .parent(id)
                 .graphics_for(id)
                 .set(id_tick, ui);
+
+            widget::Text::new(&format!("{}", mark_position))
+                .color(color)
+                .align_text_to(conrod::Align::Middle)
+				.xy(start_coord_tick_label)
+                .parent(id)
+                .graphics_for(id)
+                .set(id_label, ui);
         }
     }
 }
