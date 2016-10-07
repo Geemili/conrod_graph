@@ -1,12 +1,7 @@
 
 use conrod::{Ui, Dimension, FontSize, widget, text, utils, self};
 use conrod::{Color, Colorable, Positionable, Scalar, Sizeable, Widget};
-
-pub enum Orientation {
-	Horizontal,
-	Vertical,
-}
-
+use ::Orientation;
 
 // TODO: Make the Ruler type generic over scale type (log, linear, etc.)
 

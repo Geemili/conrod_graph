@@ -8,6 +8,11 @@ pub mod ruler;
 use conrod::{widget, utils};
 use conrod::{Color, Colorable, Positionable, Scalar, Sizeable, Widget};
 
+pub enum Orientation {
+	Horizontal,
+	Vertical,
+}
+
 pub struct LineGraph<F> {
     common: widget::CommonBuilder,
     style: Style,
@@ -90,7 +95,7 @@ impl<F> Widget for LineGraph<F>
 
         // Create x axis
         let x_axis = ruler::Ruler::new(min_x, max_x)
-            .orientation(ruler::Orientation::Horizontal);
+            .orientation(Orientation::Horizontal);
 
         // Calculate it's height
         let x_axis_height = match x_axis.default_y_dimension(ui) {
@@ -100,7 +105,7 @@ impl<F> Widget for LineGraph<F>
 
         // Create y axis
         let y_axis = ruler::Ruler::new(min_y, max_y)
-            .orientation(ruler::Orientation::Vertical);
+            .orientation(Orientation::Vertical);
 
         // Calculate it's width
         let y_axis_width = match y_axis.default_x_dimension(ui) {
