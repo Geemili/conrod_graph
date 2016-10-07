@@ -225,6 +225,7 @@ impl<X> Widget for Axis<X>
 
         let thickness = style.thickness(ui.theme());
         let color = style.color(ui.theme());
+		let font_size = style.font_size(&ui.theme);
 
         // Generate tick mark ids
         let visible_tick_marks = self.generate_ticks();
@@ -255,12 +256,27 @@ impl<X> Widget for Axis<X>
             let &id_tick = id_iter.next().expect("Axis ran out of widget ids for tick marks");
             let &id_label = label_id_iter.next().expect("Axis ran out of widget ids for labels");
 
+			// Create label
+			let text = format!("{}", mark_position);
+			let label = widget::Text::new(&text)
+				.font_size(font_size);
+
+			// Get the size of the label
+			let mut label_size = [
+				match label.default_x_dimension(ui) {Dimension::Absolute(scalar)=>scalar,_=>0.0},
+				match label.default_y_dimension(ui) {Dimension::Absolute(scalar)=>scalar,_=>0.0},
+			];
+
 			// Calculate where the mark is placed in UI coordinates
 			let line_plot_coord = point_to_plot(mark_position.into());
 
-			let mut label_coords = [0.0; 2];
-			label_coords[coord_ord[0]] = line_plot_coord;
-			label_coords[coord_ord[1]] = draw_rect[coord_ord[1]][0];
+			let mut label_rect = [[0.0; 2]; 2];
+			label_rect[0][coord_ord[0]] = line_plot_coord - label_size[coord_ord[0]]/2.0; // Lower major axis
+			label_rect[0][coord_ord[1]] = draw_rect[coord_ord[1]][0] - label_size[coord_ord[1]]/2.0;
+			label_rect[1][coord_ord[0]] = line_plot_coord + label_size[coord_ord[0]]/2.0; // Lower major axis
+			label_rect[1][coord_ord[1]] = draw_rect[coord_ord[1]][0] + label_size[coord_ord[1]]/2.0;
+
+			let label_rect = conrod::Rect::from_corners(label_rect[0], label_rect[1]);
 
 			let mut start_coord = [0.0; 2];
 			start_coord[coord_ord[0]] = line_plot_coord;
@@ -270,6 +286,7 @@ impl<X> Widget for Axis<X>
 			end_coord[coord_ord[0]] = line_plot_coord;
 			end_coord[coord_ord[1]] = draw_rect[coord_ord[1]][1] + tick_mark_size;
 
+			// Add widgets
             widget::Line::abs(start_coord, end_coord)
                 .color(color)
                 .thickness(thickness)
@@ -277,13 +294,17 @@ impl<X> Widget for Axis<X>
                 .graphics_for(id)
                 .set(id_tick, ui);
 
-            widget::Text::new(&format!("{}", mark_position))
-                .color(color)
-                .align_text_to(conrod::Align::Middle)
-				.xy(label_coords)
-                .parent(id)
-                .graphics_for(id)
-                .set(id_label, ui);
+			// Set text so that it matches up with the divider line
+			let label = match *orientation {
+				Orientation::Horizontal => label.x(label_rect.x()).y(label_rect.top()),
+				Orientation::Vertical => label.x(label_rect.right()).y(label_rect.y()),
+			};
+			label
+				.color(color)
+				.parent(id)
+				.graphics_for(id)
+				.wh(label_rect.dim())
+				.set(id_label, ui);
         }
 
 		let mut divider_points = [[0.0, 0.0], [0.0, 0.0]];

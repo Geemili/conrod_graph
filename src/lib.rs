@@ -86,7 +86,6 @@ impl<F> Widget for LineGraph<F>
         let widget::UpdateArgs { id, state, style, rect, ui, ..} = args;
         let LineGraph { min_x, max_x, min_y, max_y, f, ..} = self;
 
-        let thickness = style.thickness(ui.theme());
         let color = style.color(ui.theme());
 
         // Create x axis
