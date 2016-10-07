@@ -170,7 +170,6 @@ impl<X> Widget for Ruler<X>
 
 		let font_size = self.style.font_size(&ui.theme);
 		let mut max_width = 0.0;
-        let visible_tick_marks = self.generate_ticks();
 		for tick_mark in self.generate_ticks() {
 			let width = text::line::width(&format!("{}", tick_mark), font, font_size);
 			max_width = utils::partial_max(max_width, width);
@@ -183,14 +182,6 @@ impl<X> Widget for Ruler<X>
 			Orientation::Horizontal => 0.0,
 			Orientation::Vertical => self.style.tick_mark_size(&ui.theme),
 		};
-		let font = match self.style.font_id(&ui.theme)
-			.or(ui.fonts.ids().next())
-			.and_then(|id| ui.fonts.get(id))
-			{
-				Some(font) => font,
-				None => return Dimension::Absolute(tick_mark_height),
-			};
-
 		let font_size = self.style.font_size(&ui.theme);
 		let height = text::height(1, font_size, 0.0);
 		Dimension::Absolute(height + tick_mark_height)
@@ -257,7 +248,7 @@ impl<X> Widget for Ruler<X>
 				.font_size(font_size);
 
 			// Get the size of the label
-			let mut label_size = [
+			let label_size = [
 				match label.default_x_dimension(ui) {Dimension::Absolute(scalar)=>scalar,_=>0.0},
 				match label.default_y_dimension(ui) {Dimension::Absolute(scalar)=>scalar,_=>0.0},
 			];

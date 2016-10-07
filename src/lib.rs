@@ -5,8 +5,7 @@ extern crate num;
 
 pub mod ruler;
 
-use conrod::{widget, utils};
-use conrod::{Color, Colorable, Positionable, Scalar, Sizeable, Widget};
+use conrod::{Color, Colorable, Positionable, Scalar, Sizeable, Widget, widget};
 
 pub enum Orientation {
 	Horizontal,
