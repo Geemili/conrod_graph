@@ -76,6 +76,8 @@ fn set_ui(ref mut ui: conrod::UiCell, ids: &Ids) {
 
     // Creature a graph from x: [-1.0, 1.0] and y: [-1.0, 1.0]
     LineGraph::new(-1.0, 1.0, -1.0, 1.0, |x| f64::sin((x + 1.0)*std::f64::consts::PI))
+        .label_x(Some("Time (S)"))
+        .label_y(Some("Intrest Rate (%)"))
 		.parent(ids.canvas)
         .middle()
         .padded_wh_of(ids.canvas, 0.0)
