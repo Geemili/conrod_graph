@@ -8,9 +8,9 @@ pub enum Orientation {
 }
 
 
-// TODO: Make the Axis type generic over scale type (log, linear, etc.)
+// TODO: Make the Ruler type generic over scale type (log, linear, etc.)
 
-pub struct Axis<X> {
+pub struct Ruler<X> {
     common: widget::CommonBuilder,
     style: Style,
 	orientation: Orientation,
@@ -50,12 +50,12 @@ pub struct State {
 
 use num::Zero;
 
-impl<X> Axis<X>
+impl<X> Ruler<X>
 	where X: Clone + Zero + Into<f64>
 	{
 
     pub fn new(min: X, max: X) -> Self {
-        Axis {
+        Ruler {
             common: widget::CommonBuilder::new(),
             style: Style::new(),
 			orientation: Orientation::Horizontal,
@@ -135,7 +135,7 @@ fn get_lower_bound_index(elements: &[f64], target: f64) -> Option<usize> {
 	None
 }
 
-impl<X> Widget for Axis<X>
+impl<X> Widget for Ruler<X>
     where X: Clone + Zero + Into<f64>,
 {
     type State = State;
@@ -203,7 +203,7 @@ impl<X> Widget for Axis<X>
 
     fn update(self, args: widget::UpdateArgs<Self>) -> Self::Event {
         let widget::UpdateArgs { id, state, style, rect, ui, ..} = args;
-        let Axis { ref min, ref max, ref orientation, ..} = self;
+        let Ruler { ref min, ref max, ref orientation, ..} = self;
 
 		// The code that actually figures out where to put lines. E.G., the logic specific to this
 		// widget
@@ -253,8 +253,8 @@ impl<X> Widget for Axis<X>
         let mut label_id_iter = state.ids.labels.iter();
 		for mark_position in visible_tick_marks {
 			// Get the next id
-            let &id_tick = id_iter.next().expect("Axis ran out of widget ids for tick marks");
-            let &id_label = label_id_iter.next().expect("Axis ran out of widget ids for labels");
+            let &id_tick = id_iter.next().expect("Ruler ran out of widget ids for tick marks");
+            let &id_label = label_id_iter.next().expect("Ruler ran out of widget ids for labels");
 
 			// Create label
 			let text = format!("{}", mark_position);

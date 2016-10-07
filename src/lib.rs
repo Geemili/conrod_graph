@@ -3,7 +3,7 @@
 extern crate conrod;
 extern crate num;
 
-pub mod axis;
+pub mod ruler;
 
 use conrod::{widget, utils};
 use conrod::{Color, Colorable, Positionable, Scalar, Sizeable, Widget};
@@ -89,8 +89,8 @@ impl<F> Widget for LineGraph<F>
         let color = style.color(ui.theme());
 
         // Create x axis
-        let x_axis = axis::Axis::new(min_x, max_x)
-            .orientation(axis::Orientation::Horizontal);
+        let x_axis = ruler::Ruler::new(min_x, max_x)
+            .orientation(ruler::Orientation::Horizontal);
 
         // Calculate it's height
         let x_axis_height = match x_axis.default_y_dimension(ui) {
@@ -99,8 +99,8 @@ impl<F> Widget for LineGraph<F>
         };
 
         // Create y axis
-        let y_axis = axis::Axis::new(min_y, max_y)
-            .orientation(axis::Orientation::Vertical);
+        let y_axis = ruler::Ruler::new(min_y, max_y)
+            .orientation(ruler::Orientation::Vertical);
 
         // Calculate it's width
         let y_axis_width = match y_axis.default_x_dimension(ui) {
