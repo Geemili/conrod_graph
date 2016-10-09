@@ -68,14 +68,15 @@ fn main() {
 
 fn set_ui(ref mut ui: conrod::UiCell, ids: &Ids) {
     use conrod::{widget, Positionable, Sizeable, Widget};
-    use conrod_graph::LineGraph;
+    use conrod_graph::{line, LineGraph};
 
     // Set up canvas
     widget::Canvas::new()
         .set(ids.canvas, ui);
 
     // Creature a graph from x: [-1.0, 1.0] and y: [-1.0, 1.0]
-    LineGraph::new(-1.0, 1.0, -1.0, 1.0, |x| f64::sin((x + 1.0)*std::f64::consts::PI))
+    LineGraph::new(-1.0, 1.0, -1.0, 1.0)
+        .add_line(line::Line::from_fn(Box::new(|x| f64::sin((x + 1.0)*std::f64::consts::PI))))
         .label_x(Some("Time (S)"))
         .label_y(Some("Intrest Rate (%)"))
 		.parent(ids.canvas)

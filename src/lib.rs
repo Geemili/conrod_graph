@@ -4,6 +4,7 @@ extern crate conrod;
 extern crate num;
 
 pub mod ruler;
+pub mod line;
 
 use conrod::{Color, Colorable, Positionable, Scalar, Sizeable, Widget, widget};
 
@@ -12,7 +13,7 @@ pub enum Orientation {
 	Vertical,
 }
 
-pub struct LineGraph<'a, F> {
+pub struct LineGraph<'a> {
     common: widget::CommonBuilder,
     style: Style,
     // Stuff that plot path has
@@ -22,7 +23,7 @@ pub struct LineGraph<'a, F> {
     min_y: f64,
     max_y: f64,
     label_y: Option<&'a str>,
-    f: F,
+    lines: Vec<line::Line<f64>>,
 }
 
 widget_style! {
@@ -36,7 +37,7 @@ widget_style! {
 
 widget_ids! {
     struct Ids {
-        plot_path,
+        plot_paths[],
         label_x,
         axis_x,
         label_y,
@@ -48,9 +49,9 @@ pub struct State {
     ids: Ids,
 }
 
-impl<'a, F> LineGraph<'a, F> {
+impl<'a> LineGraph<'a> {
 
-    pub fn new(min_x: f64, max_x: f64, min_y: f64, max_y: f64, f: F) -> Self {
+    pub fn new(min_x: f64, max_x: f64, min_y: f64, max_y: f64) -> Self {
         LineGraph {
             common: widget::CommonBuilder::new(),
             style: Style::new(),
@@ -60,7 +61,7 @@ impl<'a, F> LineGraph<'a, F> {
             min_y: min_y,
             max_y: max_y,
             label_y: None,
-            f: f,
+            lines: vec![],
         }
     }
 
@@ -74,11 +75,14 @@ impl<'a, F> LineGraph<'a, F> {
         self
     }
 
+    pub fn add_line(mut self, line: line::Line<f64>) -> Self {
+        self.lines.push(line);
+        self
+    }
+
 }
 
-impl<'a, F> Widget for LineGraph<'a, F>
-    where F: Fn(f64) -> f64,
-{
+impl<'a> Widget for LineGraph<'a> {
     type State = State;
     type Style = Style;
     type Event = ();
@@ -104,7 +108,7 @@ impl<'a, F> Widget for LineGraph<'a, F>
     fn update(self, args: widget::UpdateArgs<Self>) -> Self::Event {
         use conrod::Rect;
         let widget::UpdateArgs { id, state, style, rect, ui, ..} = args;
-        let LineGraph { min_x, max_x, min_y, max_y, f, ..} = self;
+        let LineGraph { min_x, max_x, min_y, max_y, ..} = self;
 
         let color = style.color(ui.theme());
 
@@ -188,17 +192,27 @@ impl<'a, F> Widget for LineGraph<'a, F>
             .wh(y_axis_rect.dim())
             .set(state.ids.axis_y, ui);
 
-        // Place PlotPath
+        // Genereate ids for the graph's plines
+        if state.ids.plot_paths.len() < self.lines.len() {
+            let id_gen = &mut ui.widget_id_generator();
+            state.update(|state| state.ids.plot_paths.resize(self.lines.len(), id_gen));
+        }
+
+        // Calculate PlotPaths' area
         let plot_path_rect = Rect::from_corners(
             [x_axis_rect.left(), y_axis_rect.bottom()],
             [rect.right(),       rect.top()]);
-        widget::PlotPath::new(min_x, max_x, min_y, max_y, f)
-            .wh(plot_path_rect.dim())
-            .xy(plot_path_rect.xy())
-            .color(color)
-            .parent(id)
-            .crop_kids()
-            .set(state.ids.plot_path, ui);
+
+        // Place plotpaths
+        for (line, widget_id) in self.lines.iter().zip(state.ids.plot_paths.iter()) {
+            widget::PlotPath::new(min_x, max_x, min_y, max_y, |x| (*line.function)(x))
+                .wh(plot_path_rect.dim())
+                .xy(plot_path_rect.xy())
+                .color(line.color)
+                .parent(id)
+                .crop_kids()
+                .set(*widget_id, ui);
+        }
     }
 }
 
