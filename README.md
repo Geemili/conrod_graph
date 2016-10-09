@@ -4,6 +4,8 @@
 
 ## How to use
 
+![Screenshot of application with graph](images/screenshot_01.png)
+
 At the moment, `conrod_graph` only supports drawing line graphs. The graph accepts a `Fn(f64) -> f64`.
 
 ```Rust
@@ -16,10 +18,11 @@ fn set_ui(ref mut ui: conrod::UiCell, ids: &Ids) {
         .set(ids.canvas, ui);
 
     // Creature a graph from x: [-1.0, 1.0] and y: [-1.0, 1.0]
-    LineGraph::new(-1.0, 1.0, -1.0, 1.0, |x| f64::sin((x + 1.0)*std::f64::consts::PI))
-		.parent(ids.canvas)
-        .middle()
-        .wh_of(ids.canvas)
-		.set(ids.graph, ui);
+    LineGraph::new(-1.0, 1.0, -1.0, 1.0)
+      .add_line(Box::new(|x| f64::sin((x + 1.0)*std::f64::consts::PI)))
+      .parent(ids.canvas)
+      .middle()
+      .wh_of(ids.canvas)
+      .set(ids.graph, ui);
 }
 ```
